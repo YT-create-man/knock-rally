@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI活用ノックラリー</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;700;900&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --orange: #E8532A;
+      --orange-dark: #C94420;
+      --orange-light: #FF6B3D;
+      --yellow: #FFB800;
+      --dark: #1A1A1A;
+      --dark2: #252525;
+      --dark3: #2E2E2E;
+      --text: #F0F0F0;
+      --text-dim: #888;
+      --green: #2ECC71;
+      --blue: #3498DB;
+      --purple: #9B59B6;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* タイマー */
+    #timer-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 24px;
+      background: rgba(26, 26, 26, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      display: none;
+    }
+
+    #timer-bar .brand {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.1rem;
+      color: var(--orange);
+      letter-spacing: 2px;
+    }
+
+    #timer-display {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2rem;
+      letter-spacing: 4px;
+      color: var(--text);
+      transition: color 0.3s;
+    }
+
+    #timer-display.warning {
+      color: var(--yellow);
+    }
+
+    #timer-display.danger {
+      color: var(--orange);
+      animation: pulse 1s infinite;
+    }
+
+    #timer-bar .player-info {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    #timer-bar .player-info span {
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    #timer-bar .count-badge {
+      background: var(--dark3);
+      border: 1px solid #444;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    #timer-bar .count-badge span {
+      color: var(--orange);
+      font-weight: 900;
+    }
+
+    #timer-progress {
+      position: fixed;
+      top: 53px;
+      left: 0;
+      height: 3px;
+      background: var(--orange);
+      transition: width 1s linear, background 0.3s;
+      z-index: 100;
+      display: none;
+    }
+
+    /* セクション共通 */
+    .screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* スタート画面 */
+    #screen-start {
+      gap: 32px;
+    }
+
+    .logo-area {
+      text-align: center;
+    }
+
+    .logo-area .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 6px;
+      color: var(--orange);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .logo-area h1 {
+      font-family: 'Bebas Neue', cursive;
+      font-size: clamp(2.8rem, 8vw, 5rem);
+      letter-spacing: 4px;
+      line-height: 1;
+      background: linear-gradient(135deg, #fff 0%, var(--orange) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo-area .sub {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      margin-top: 8px;
+      letter-spacing: 2px;
+    }
+
+    /* 所属・名前選択 */
+    .select-section {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 4px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .custom-select {
+      width: 100%;
+      background: var(--dark3);
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: 'Noto Sans JP', sans-serif;
+      padding: 14px 16px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .custom-select:focus {
+      border-color: var(--orange);
+    }
+
+    .custom-select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 難易度選択 */
+    .diff-section {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .diff-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .diff-btn {
+      background: var(--dark3);
+      border: 2px solid #444;
+      border-radius: 10px;
+      padding: 14px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .diff-btn:hover {
+      border-color: #666;
+      transform: translateY(-2px);
+    }
+
+    .diff-btn.active {
+      border-color: var(--orange);
+      background: rgba(232, 83, 42, 0.12);
+    }
+
+    .diff-btn .diff-icon {
+      font-size: 1.5rem;
+      margin-bottom: 4px;
+    }
+
+    .diff-btn .diff-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: block;
+    }
+
+    .diff-btn .diff-desc {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+      display: block;
+    }
+
+    .diff-btn .diff-count {
+      font-size: 0.65rem;
+      color: var(--orange);
+      margin-top: 3px;
+      display: block;
+    }
+
+    /* 挑戦ボタン */
+    #btn-start {
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 18px 60px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.6rem;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #btn-start::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.4s;
+    }
+
+    #btn-start:hover {
+      background: var(--orange-light);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(232, 83, 42, 0.4);
+    }
+
+    #btn-start:hover::after {
+      transform: translateX(100%);
+    }
+
+    #btn-start:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ルーレット画面 */
+    #screen-roulette {
+      padding-top: 80px;
+      gap: 32px;
+    }
+
+    .roulette-stage {
+      width: 100%;
+      max-width: 560px;
+      background: var(--dark2);
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    .roulette-label {
+      font-size: 0.7rem;
+      letter-spacing: 4px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .slot-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .slot-box {
+      background: var(--dark);
+      border: 1px solid #444;
+      border-radius: 8px;
+      width: 72px;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slot-num {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 3.2rem;
+      color: var(--orange);
+      display: block;
+      transition: transform 0.05s;
+    }
+
+    .slot-box.spinning .slot-num {
+      animation: spin-num 0.08s steps(1) infinite;
+    }
+
+    .slot-sep {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2.5rem;
+      color: #444;
+    }
+
+    .task-slot {
+      background: var(--dark);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 14px 20px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #slot-task-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    /* 詳細カード */
+    #detail-card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--dark2);
+      border: 1px solid var(--orange);
+      border-radius: 16px;
+      padding: 28px;
+      display: none;
+      animation: fadeInUp 0.4s ease;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card-no {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 3rem;
+      color: var(--orange);
+      line-height: 1;
+      min-width: 64px;
+    }
+
+    .card-meta {
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 900;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .tag-cat {
+      background: rgba(52, 152, 219, 0.2);
+      color: #3498DB;
+      border: 1px solid rgba(52, 152, 219, 0.4);
+    }
+
+    .tag-tool {
+      background: rgba(46, 204, 113, 0.2);
+      color: #2ECC71;
+      border: 1px solid rgba(46, 204, 113, 0.4);
+    }
+
+    .tag-diff {
+      background: rgba(232, 83, 42, 0.2);
+      color: var(--orange);
+      border: 1px solid rgba(232, 83, 42, 0.4);
+    }
+
+    .tag-time {
+      background: rgba(155, 89, 182, 0.2);
+      color: #9B59B6;
+      border: 1px solid rgba(155, 89, 182, 0.4);
+    }
+
+    .prompt-section {
+      margin-top: 16px;
+    }
+
+    .prompt-label {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .prompt-box {
+      background: var(--dark);
+      border-left: 3px solid var(--orange);
+      border-radius: 0 6px 6px 0;
+      padding: 12px 16px;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: #CCC;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    #btn-form {
+      flex: 1;
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.2rem;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #btn-form:hover {
+      background: var(--orange-light);
+      transform: translateY(-1px);
+    }
+
+    #btn-next {
+      background: var(--dark3);
+      color: var(--text);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    #btn-next:hover {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    #roulette-start-area {
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+    }
+
+    #btn-roulette {
+      background: transparent;
+      color: var(--orange);
+      border: 2px solid var(--orange);
+      border-radius: 10px;
+      padding: 16px 48px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.4rem;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #btn-roulette:hover {
+      background: rgba(232, 83, 42, 0.1);
+      transform: translateY(-2px);
+    }
+
+    #btn-roulette:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .current-player {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .current-player span {
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    /* 終了画面 */
+    #screen-end {
+      gap: 24px;
+      text-align: center;
+      display: none;
+    }
+
+    .end-title {
+      font-family: 'Bebas Neue', cursive;
+      font-size: clamp(2.5rem, 7vw, 4.5rem);
+      letter-spacing: 4px;
+      color: var(--orange);
+    }
+
+    .end-count {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 5rem;
+      color: var(--yellow);
+      line-height: 1;
+    }
+
+    .end-count-label {
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+    }
+
+    .end-message {
+      color: var(--text-dim);
+      line-height: 1.7;
+      max-width: 360px;
+    }
+
+    #btn-spreadsheet {
+      display: inline-block;
+      margin-top: 8px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 32px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    #btn-spreadsheet:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+    }
+
+    /* アニメーション */
+    @keyframes spin-num {
+      0% {
+        content: '0';
+      }
+
+      10% {
+        transform: translateY(-4px);
+      }
+
+      50% {
+        transform: translateY(4px);
+      }
+
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    @keyframes flash-border {
+
+      0%,
+      100% {
+        border-color: var(--orange);
+      }
+
+      50% {
+        border-color: var(--yellow);
+        box-shadow: 0 0 20px rgba(255, 184, 0, 0.4);
+      }
+    }
+
+    .flash {
+      animation: flash-border 0.4s ease 3;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- タイマーバー -->
+  <div id="timer-bar">
+    <div class="brand">KNOCK RALLY</div>
+    <div class="player-info"><span id="timer-dept">—</span> / <span id="timer-name">—</span></div>
+    <div id="timer-display">25:00</div>
+    <div class="count-badge">提出 <span id="submit-count">0</span> 本</div>
+  </div>
+  <div id="timer-progress"></div>
+
+  <!-- スタート画面 -->
+  <div class="screen" id="screen-start">
+    <div class="logo-area">
+      <div class="eyebrow">PC Depot AI Training 2026</div>
+      <h1>KNOCK RALLY</h1>
+      <div class="sub">AI活用100本ノック　実践タイムアタック</div>
+    </div>
+
+    <!-- 所属選択 -->
+    <div class="select-section">
+      <div class="section-label">— Department —</div>
+      <select id="dept-select" class="custom-select">
+        <option value="">所属を選んでください</option>
+      </select>
+    </div>
+
+    <!-- 名前選択 -->
+    <div class="select-section">
+      <div class="section-label">— Your Name —</div>
+      <select id="name-select" class="custom-select" disabled>
+        <option value="">先に所属を選んでください</option>
+      </select>
+    </div>
+
+    <!-- 難易度選択 -->
+    <div class="diff-section">
+      <div class="section-label">— Difficulty —</div>
+      <div class="diff-buttons">
+        <button class="diff-btn active" data-diff="beginner">
+          <div class="diff-icon">🌱</div>
+          <span class="diff-name">ビギナー級</span>
+          <span class="diff-desc">はじめての人向け</span>
+          <span class="diff-count" id="count-beginner">★☆☆ 23本</span>
+        </button>
+        <button class="diff-btn" data-diff="medium">
+          <div class="diff-icon">⚡</div>
+          <span class="diff-name">ミディアム級</span>
+          <span class="diff-desc">慣れてきたら</span>
+          <span class="diff-count" id="count-medium">全75本</span>
+        </button>
+        <button class="diff-btn" data-diff="heavy">
+          <div class="diff-icon">🔥</div>
+          <span class="diff-name">ヘビー級</span>
+          <span class="diff-desc">本気の人だけ</span>
+          <span class="diff-count" id="count-heavy">★★☆ 52本</span>
+        </button>
+      </div>
+    </div>
+
+    <button id="btn-start" disabled>挑戦スタート</button>
+  </div>
+
+  <!-- ルーレット画面 -->
+  <div class="screen" id="screen-roulette" style="display:none;">
+    <div id="roulette-start-area">
+      <div class="current-player">プレイヤー：<span id="player-dept-display">—</span> / <span
+          id="player-name-display">—</span></div>
+      <button id="btn-roulette">ルーレット回す</button>
+    </div>
+    <div class="roulette-stage">
+      <div class="roulette-label">— Now Picking —</div>
+      <div class="slot-wrapper">
+        <div class="slot-box" id="slot-d2"><span class="slot-num" id="sn2">—</span></div>
+        <div class="slot-sep"></div>
+        <div class="slot-box" id="slot-d1"><span class="slot-num" id="sn1">—</span></div>
+      </div>
+      <div class="task-slot">
+        <span id="slot-task-name">— ルーレットを回してください —</span>
+      </div>
+    </div>
+    <div id="detail-card">
+      <div class="card-header">
+        <div class="card-no" id="card-no">—</div>
+        <div class="card-meta">
+          <div class="card-title" id="card-title">—</div>
+          <div class="card-tags" id="card-tags"></div>
+        </div>
+      </div>
+      <div class="prompt-section">
+        <div class="prompt-label">— Prompt Example —</div>
+        <div class="prompt-box" id="card-prompt">—</div>
+      </div>
+      <div class="action-buttons">
+        <button id="btn-form">📤 回答フォームへ</button>
+        <button id="btn-next">次の問題へ ↩</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 終了画面 -->
+  <div class="screen" id="screen-end">
+    <div class="end-title">TIME UP !</div>
+    <div>
+      <div class="end-count" id="end-count">0</div>
+      <div class="end-count-label">本提出</div>
+    </div>
+    <div class="end-message">
+      お疲れさまでした！<br>
+      結果はスプレッドシートで確認できます。
+    </div>
+    <a id="btn-spreadsheet" href="#" target="_blank">📊 結果スプレッドシートを開く</a>
+  </div>
+
+  <script>
+    // ========== データ ==========
+    const PROBLEMS = [{ "no": 1, "cat": "接客支援", "name": "顧客FAQ即答集の作成", "tool": "Google Workspace", "diff": "★☆☆", "time": "15分", "prompt": "「当店でよく聞かれる質問トップ10とその回答を、初心者スタッフでもわかりやすいQ&A形式でまとめてください」" }, { "no": 2, "cat": "接客支援", "name": "クレーム対応マニュアルの整備", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「過去のクレーム対応記録から、お客様を怒らせずに解決できた事例の共通点を抽出し、対応フローを作成してください」" }, { "no": 3, "cat": "接客支援", "name": "商品比較表の自動生成", "tool": "Google Workspace", "diff": "★☆☆", "time": "20分", "prompt": "「A製品とB製品の価格、機能、保証内容を表形式で比較し、それぞれどんなお客様に向いているか説明を加えてください」" }, { "no": 4, "cat": "接客支援", "name": "接客トークスクリプトの作成", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「AI活用コースを20代女性に提案する際の、興味を引く導入トークを3パターン作成してください」" }, { "no": 6, "cat": "接客支援", "name": "季節別おすすめ商品リスト", "tool": "Google Workspace", "diff": "★☆☆", "time": "15分", "prompt": "「春に需要が高まる商品5つをピックアップし、各商品の魅力を30文字で表現してください」" }, { "no": 7, "cat": "接客支援", "name": "VIP顧客向け特別メッセージ", "tool": "Google Workspace", "diff": "★★☆", "time": "20分", "prompt": "「過去5回以上購入されているお客様に、感謝の気持ちを伝える特別な招待メッセージを作成してください」" }, { "no": 9, "cat": "接客支援", "name": "競合他社の強み・弱み分析", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「近隣の家電量販店3社の特徴と、当店が優位性を持てるポイントを調査してまとめてください」" }, { "no": 10, "cat": "接客支援", "name": "最新商品トレンド調査", "tool": "Genspark", "diff": "★☆☆", "time": "20分", "prompt": "「2025年に人気のスマートホーム製品ベスト5と、それぞれの特長を調査してください」" }, { "no": 11, "cat": "接客支援", "name": "お客様の悩みから商品提案", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「『家事を楽にしたい』というお客様に最適な、最新の時短家電を3つ提案し、理由も説明してください」" }, { "no": 12, "cat": "接客支援", "name": "商品レビューの要約", "tool": "Genspark", "diff": "★☆☆", "time": "15分", "prompt": "「〇〇という商品のネット上のレビューを調査し、高評価・低評価の理由をそれぞれ3つずつ抽出してください」" }, { "no": 13, "cat": "接客支援", "name": "業界用語の平易化", "tool": "Genspark", "diff": "★★☆", "time": "20分", "prompt": "「『クラウドストレージ』『Wi-Fi6』などの専門用語を、高齢者にもわかる言葉で説明してください」" }, { "no": 15, "cat": "接客支援", "name": "他店からの乗り換え促進トーク", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「他社で契約中のお客様に、当店のサービスに切り替えるメリットを論理的に説明する資料を作成してください」" }, { "no": 17, "cat": "接客支援", "name": "接客トークの図解化", "tool": "Canva", "diff": "★☆☆", "time": "20分", "prompt": "「商品の選び方フローチャートを、お客様にその場で見せられるA4サイズの図解にしてください」" }, { "no": 18, "cat": "接客支援", "name": "商品比較POPの作成", "tool": "Canva", "diff": "★☆☆", "time": "15分", "prompt": "「2つの料金プランを比較する、一目でわかるPOPデザインを作成してください」" }, { "no": 19, "cat": "接客支援", "name": "接客マニュアルの視覚化", "tool": "Canva", "diff": "★★☆", "time": "30分", "prompt": "「接客の5ステップを、イラスト付きでわかりやすくまとめた教育用ポスターを作成してください」" }, { "no": 20, "cat": "接客支援", "name": "お客様の成功事例の紹介カード", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「実際にAI活用コースで生活が変わったお客様の声を、写真とコメント付きで紹介するカードを作成してください」" }, { "no": 21, "cat": "販促・告知", "name": "キャンペーン企画書の作成", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「春の新生活応援キャンペーンの企画書を、目的・ターゲット・施策・予算・期待効果の5項目で作成してください」" }, { "no": 22, "cat": "販促・告知", "name": "SNS投稿文の大量生成", "tool": "Google Workspace", "diff": "★☆☆", "time": "20分", "prompt": "「新商品〇〇の魅力を伝えるInstagram投稿文を、異なる切り口で10パターン作成してください」" }, { "no": 23, "cat": "販促・告知", "name": "メルマガ配信文の作成", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「今月のおすすめ商品を紹介するメールマガジンを、開封率が高まる件名も含めて作成してください」" }, { "no": 24, "cat": "販促・告知", "name": "店頭イベントの告知文", "tool": "Google Workspace", "diff": "★☆☆", "time": "15分", "prompt": "「週末開催の無料体験会の告知文を、参加したくなる表現で200文字以内で作成してください」" }, { "no": 25, "cat": "販促・告知", "name": "LINE公式アカウントの配信計画", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「月4回配信するLINEメッセージの配信スケジュールと内容案を、季節感を考慮して作成してください」" }, { "no": 27, "cat": "販促・告知", "name": "商品説明文のSEO最適化", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「この商品説明文に、検索されやすいキーワードを自然に盛り込んで改善してください」" }, { "no": 29, "cat": "販促・告知", "name": "競合のキャンペーン動向調査", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「競合3社が現在実施中のキャンペーン内容と、顧客の反応を調査してまとめてください」" }, { "no": 30, "cat": "販促・告知", "name": "トレンドキーワードの抽出", "tool": "Genspark", "diff": "★☆☆", "time": "15分", "prompt": "「今月SNSで話題になっているキーワードで、当店の商品に関連するものを10個抽出してください」" }, { "no": 31, "cat": "販促・告知", "name": "広告コピーのトレンド分析", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「現在クリック率が高いデジタル広告のキャッチコピーの特徴を分析し、自社に応用できる表現を提案してください」" }, { "no": 33, "cat": "販促・告知", "name": "地域イベントカレンダーの作成", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「横浜市内で今後3ヶ月に開催される、出店や協賛が可能なイベント情報をリスト化してください」" }, { "no": 35, "cat": "販促・告知", "name": "ギフト需要の調査", "tool": "Genspark", "diff": "★★☆", "time": "20分", "prompt": "「母の日・父の日に人気のプレゼント傾向と、当店で提案できる商品を調査してください」" }, { "no": 37, "cat": "販促・告知", "name": "SNS広告バナーの作成", "tool": "Canva", "diff": "★☆☆", "time": "20分", "prompt": "「Instagram/Facebook用の正方形バナーを、キャンペーン内容が一目でわかるデザインで作成してください」" }, { "no": 38, "cat": "販促・告知", "name": "店頭POPの大量制作", "tool": "Canva", "diff": "★☆☆", "time": "25分", "prompt": "「おすすめ商品5点の、価格と特長を強調したA4サイズのPOPを一括作成してください」" }, { "no": 39, "cat": "販促・告知", "name": "キャンペーン告知ポスター", "tool": "Canva", "diff": "★★☆", "time": "30分", "prompt": "「春のキャンペーンを告知するA2サイズのポスターを、目を引くビジュアルで作成してください」" }, { "no": 40, "cat": "販促・告知", "name": "LINE配信用のリッチメニュー画像", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「LINE公式アカウントのリッチメニューを、4分割で各サービスへ誘導するデザインで作成してください」" }, { "no": 41, "cat": "提案資料", "name": "顧客向け提案書の骨子作成", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「法人のお客様向けに、AI活用導入の費用対効果を示す提案書の構成案を作成してください」" }, { "no": 43, "cat": "提案資料", "name": "社内企画書のたたき台作成", "tool": "Google Workspace", "diff": "★☆☆", "time": "20分", "prompt": "「店舗での無料相談会の企画書を、目的・内容・スケジュール・必要リソースの4点で作成してください」" }, { "no": 44, "cat": "提案資料", "name": "競合比較プレゼン資料", "tool": "Google Workspace", "diff": "★★☆", "time": "35分", "prompt": "「当店と競合A社のサービスを比較し、当店の優位性を強調するスライド資料を作成してください」" }, { "no": 45, "cat": "提案資料", "name": "導入事例集の作成", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「AI活用コースを導入したお客様の成功事例を、Before/After形式で3事例まとめてください」" }, { "no": 47, "cat": "提案資料", "name": "業界トレンドレポート", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「デジタル化が遅れている業界の最新動向と、AI導入の必要性を説明するレポートを作成してください」" }, { "no": 48, "cat": "提案資料", "name": "成功企業の事例調査", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「中小企業がAI活用で成果を出した事例を3つ調査し、共通する成功要因を抽出してください」" }, { "no": 50, "cat": "提案資料", "name": "導入ステップの設計", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「AI活用を初めて導入する企業向けの、段階的な導入ステップと各段階の期間を提案してください」" }, { "no": 51, "cat": "提案資料", "name": "顧客の課題の言語化", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「『なんとなく非効率』と感じている業務を、具体的な課題として定義し、解決策とセットで提示してください」" }, { "no": 53, "cat": "提案資料", "name": "提案書の表紙デザイン", "tool": "Canva", "diff": "★☆☆", "time": "15分", "prompt": "「信頼感のある、プロフェッショナルな提案書の表紙デザインを作成してください」" }, { "no": 54, "cat": "提案資料", "name": "図解・インフォグラフィック作成", "tool": "Canva", "diff": "★★☆", "time": "30分", "prompt": "「AI活用による業務フローの改善を、Before/Afterのフローチャートで表現してください」" }, { "no": 55, "cat": "提案資料", "name": "プレゼンスライドのビジュアル強化", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「データが多いスライドを、グラフやアイコンを使って視覚的にわかりやすく再デザインしてください」" }, { "no": 57, "cat": "イベント", "name": "参加者管理シートの設計", "tool": "Google Workspace", "diff": "★☆☆", "time": "20分", "prompt": "「申込者の名前・連絡先・参加人数を管理し、自動で受付リストを生成するシートを作成してください」" }, { "no": 58, "cat": "イベント", "name": "イベント後のアンケート分析", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「参加者アンケートの自由記述から、満足度が高かった点と改善点をそれぞれ抽出してください」" }, { "no": 60, "cat": "イベント", "name": "集客に成功したイベント事例調査", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「地域の家電量販店が実施して集客に成功したイベント事例を5つ調査してください」" }, { "no": 61, "cat": "イベント", "name": "イベント告知の最適タイミング", "tool": "Genspark", "diff": "★★☆", "time": "20分", "prompt": "「週末イベントの告知を何日前から始め、どの媒体で発信すると効果的かを調査してください」" }, { "no": 62, "cat": "イベント", "name": "参加特典のアイデア出し", "tool": "Genspark", "diff": "★☆☆", "time": "15分", "prompt": "「イベント参加者に喜ばれる、予算1000円以内のノベルティや特典のアイデアを10個提案してください」" }, { "no": 64, "cat": "イベント", "name": "イベント告知ポスター", "tool": "Canva", "diff": "★☆☆", "time": "20分", "prompt": "「週末開催の無料相談会を告知するポスターを、日時・内容・申込方法が明確にわかるデザインで作成してください」" }, { "no": 65, "cat": "イベント", "name": "参加証・修了証のデザイン", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「イベント参加者に渡す、記念になるデザインの参加証を作成してください」" }, { "no": 66, "cat": "業務効率化", "name": "日報の自動要約", "tool": "Google Workspace", "diff": "★☆☆", "time": "15分", "prompt": "「今日の業務内容を箇条書きで入力したら、読みやすい文章形式の日報に整形してください」" }, { "no": 67, "cat": "業務効率化", "name": "会議議事録の自動生成", "tool": "Google Workspace", "diff": "★★☆", "time": "20分", "prompt": "「Google Meetの文字起こしから、決定事項・保留事項・各自のタスクを整理した議事録を作成してください」" }, { "no": 68, "cat": "業務効率化", "name": "メール返信の下書き作成", "tool": "Google Workspace", "diff": "★☆☆", "time": "10分", "prompt": "「顧客からの問い合わせメールに対する、丁寧かつ簡潔な返信文の下書きを作成してください」" }, { "no": 69, "cat": "業務効率化", "name": "スケジュール調整の自動化", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「複数人の空き時間を自動で確認し、最適な会議日程を提案する仕組みを作ってください」" }, { "no": 71, "cat": "業務効率化", "name": "タスク管理の最適化", "tool": "Google Workspace", "diff": "★★☆", "time": "20分", "prompt": "「今週のタスクリストから、緊急度と重要度でマトリクス分類し、取り組む順番を提案してください」" }, { "no": 72, "cat": "業務効率化", "name": "業務マニュアルの検索性向上", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「100ページの業務マニュアルから、『返品処理の方法』など必要な情報をすぐに見つけられる検索システムを提案してください」" }, { "no": 73, "cat": "業務効率化", "name": "定型業務のチェックリスト化", "tool": "Genspark", "diff": "★☆☆", "time": "15分", "prompt": "「開店準備の業務を、誰がやっても漏れがないチェックリスト形式にまとめてください」" }, { "no": 76, "cat": "業務効率化", "name": "シフト作成の効率化", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「スタッフの希望休と混雑予測を考慮した、公平で効率的なシフト表の作成ルールを提案してください」" }, { "no": 78, "cat": "業務効率化", "name": "業務フロー図の作成", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「注文受付から商品発送までの業務フローを、誰が見てもわかるフローチャートで作成してください」" }, { "no": 79, "cat": "業務効率化", "name": "チェックリストのテンプレート", "tool": "Canva", "diff": "★☆☆", "time": "15分", "prompt": "「毎日の開店・閉店作業のチェックリストを、印刷して使える形式で作成してください」" }, { "no": 80, "cat": "業務効率化", "name": "業務改善提案書のビジュアル化", "tool": "Canva", "diff": "★★☆", "time": "30分", "prompt": "「現状の課題と改善後の効果を、図やグラフで視覚的に比較した資料を作成してください」" }, { "no": 81, "cat": "学習", "name": "専門用語の解説集作成", "tool": "Google Workspace", "diff": "★☆☆", "time": "20分", "prompt": "「AI、クラウド、IoTなどのデジタル用語を、初心者向けに解説する用語集を作成してください」" }, { "no": 82, "cat": "学習", "name": "学習教材の要約", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「50ページの研修資料を読み込み、重要ポイントを10ページに要約してください」" }, { "no": 83, "cat": "学習", "name": "自己成長計画の作成", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「AI活用スキルを3ヶ月で身につけるための、週次の学習計画を作成してください」" }, { "no": 85, "cat": "学習", "name": "最新トレンドの学習資料", "tool": "Genspark", "diff": "★☆☆", "time": "20分", "prompt": "「2025年のデジタル販売のトレンドを、初心者にもわかりやすくまとめた学習資料を作成してください」" }, { "no": 86, "cat": "学習", "name": "成功事例からの学び", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「他社の優秀な販売員の接客テクニックを調査し、真似できるポイントをまとめてください」" }, { "no": 87, "cat": "学習", "name": "スキルチェックテストの作成", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「AI活用の基礎知識を確認する、10問の選択式テストと解答・解説を作成してください」" }, { "no": 89, "cat": "学習", "name": "学習教材のビジュアル化", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「AI活用の5つのステップを、イラスト付きでわかりやすく説明する教材を作成してください」" }, { "no": 90, "cat": "学習", "name": "スキルマップの作成", "tool": "Canva", "diff": "★★☆", "time": "20分", "prompt": "「自分のAI活用スキルの現在地と目標を、レーダーチャートで表現したスキルマップを作成してください」" }, { "no": 91, "cat": "リサーチ", "name": "顧客アンケートの設計", "tool": "Google Workspace", "diff": "★★☆", "time": "25分", "prompt": "「AI活用コースの改善点を知るための、回答しやすい10問のアンケートを作成してください」" }, { "no": 93, "cat": "リサーチ", "name": "顧客属性の分析", "tool": "Google Workspace", "diff": "★★☆", "time": "30分", "prompt": "「購入履歴から、AI活用コースの主要な顧客層(年齢・性別・職業)の特徴を分析してください」" }, { "no": 95, "cat": "リサーチ", "name": "市場規模の調査", "tool": "Genspark", "diff": "★★☆", "time": "30分", "prompt": "「横浜市のデジタルサービス市場の規模と、今後の成長予測を調査してください」" }, { "no": 96, "cat": "リサーチ", "name": "顧客の検索行動調査", "tool": "Genspark", "diff": "★★☆", "time": "25分", "prompt": "「『スマホ 使いこなせない』と検索する人が、本当に求めている解決策を調査してください」" }, { "no": 98, "cat": "リサーチ", "name": "法規制の確認", "tool": "Genspark", "diff": "★★☆", "time": "20分", "prompt": "「AI活用サービスの広告表現で注意すべき、景品表示法などの規制内容を調査してください」" }, { "no": 99, "cat": "リサーチ", "name": "調査結果の図解化", "tool": "Canva", "diff": "★★☆", "time": "25分", "prompt": "「顧客アンケートの集計結果を、円グラフや棒グラフを使ってわかりやすく可視化してください」" }];
+
+    const POOL = {
+      beginner: PROBLEMS.filter(p => p.diff === '★☆☆'),
+      medium: PROBLEMS,
+      heavy: PROBLEMS.filter(p => p.diff === '★★☆'),
+    };
+
+    // ★★ 所属→名前マッピング ★★
+    const DEPARTMENTS = {
+      "横須賀": ["今仲", "阿部", "葛貫", "芝田", "祁", "渡辺", "渋谷", "浅川", "柴田", "木幡", "岡", "小池", "小川", "寺尾", "藤枝", "永井", "塚越", "八島(れ)", "八島", "樋口", "高木"],
+      "港南台": ["前山", "吉田", "木下", "江崎", "田中", "竹澤", "鈴木", "長山", "青柳", "内大久保", "勝又", "大川", "小山"]
+    };
+
+    // ★★ Google フォーム設定 ★★
+    const FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSf17I2ZQlUFFOHTNoUcI093CgFS4Qx0dPjdJLA8E0ekunZLMg/viewform';
+    const FORM_DEPT_ENTRY = 'entry.1840752456';  // 所属フィールド
+    const FORM_NAME_ENTRY = 'entry.1200328832';  // 名前フィールド
+
+    // ★★ スプレッドシートURL ★★
+    const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1riBJKX9f4edZxFFPphHQEFCz9Co6ieTMeYVShmSWopc/edit?usp=sharing';
+
+    // ========== 状態 ==========
+    let selectedDiff = 'beginner';
+    let selectedDept = '';
+    let selectedName = '';
+    let currentProblem = null;
+    let timerInterval = null;
+    let remainSeconds = 25 * 60;
+    let submitCount = 0;
+    let isSpinning = false;
+    let usedNos = new Set();
+
+    // ========== 初期化 ==========
+    const deptSelect = document.getElementById('dept-select');
+    const nameSelect = document.getElementById('name-select');
+
+    // 所属プルダウンを生成
+    Object.keys(DEPARTMENTS).forEach(dept => {
+      const opt = document.createElement('option');
+      opt.value = dept; opt.textContent = dept;
+      deptSelect.appendChild(opt);
+    });
+
+    // 所属選択 → 名前プルダウン連動
+    deptSelect.addEventListener('change', () => {
+      selectedDept = deptSelect.value;
+      selectedName = '';
+      nameSelect.innerHTML = '';
+
+      if (!selectedDept) {
+        nameSelect.disabled = true;
+        const opt = document.createElement('option');
+        opt.value = ''; opt.textContent = '先に所属を選んでください';
+        nameSelect.appendChild(opt);
+      } else {
+        nameSelect.disabled = false;
+        const defOpt = document.createElement('option');
+        defOpt.value = ''; defOpt.textContent = '名前を選んでください';
+        nameSelect.appendChild(defOpt);
+        DEPARTMENTS[selectedDept].forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          nameSelect.appendChild(opt);
+        });
+      }
+      updateStartBtn();
+    });
+
+    nameSelect.addEventListener('change', () => {
+      selectedName = nameSelect.value;
+      updateStartBtn();
+    });
+
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedDiff = btn.dataset.diff;
+      });
+    });
+
+    function updateStartBtn() {
+      document.getElementById('btn-start').disabled = !(selectedDept && selectedName);
+    }
+
+    // ========== スタート ==========
+    document.getElementById('btn-start').addEventListener('click', () => {
+      document.getElementById('screen-start').style.display = 'none';
+      document.getElementById('screen-roulette').style.display = 'flex';
+      document.getElementById('timer-bar').style.display = 'flex';
+      document.getElementById('timer-progress').style.display = 'block';
+      document.getElementById('player-name-display').textContent = selectedName;
+      document.getElementById('player-dept-display').textContent = selectedDept;
+      document.getElementById('timer-dept').textContent = selectedDept;
+      document.getElementById('timer-name').textContent = selectedName;
+      usedNos.clear();
+      startTimer();
+    });
+
+    // ========== タイマー ==========
+    function startTimer() {
+      remainSeconds = 25 * 60;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        remainSeconds--;
+        updateTimerDisplay();
+        updateProgress();
+        if (remainSeconds <= 0) { clearInterval(timerInterval); showEnd(); }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(remainSeconds / 60);
+      const s = remainSeconds % 60;
+      const disp = document.getElementById('timer-display');
+      disp.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      disp.className = '';
+      if (remainSeconds <= 60) disp.classList.add('danger');
+      else if (remainSeconds <= 300) disp.classList.add('warning');
+    }
+
+    function updateProgress() {
+      const pct = (remainSeconds / (25 * 60)) * 100;
+      const bar = document.getElementById('timer-progress');
+      bar.style.width = pct + '%';
+      if (remainSeconds <= 60) bar.style.background = 'var(--orange)';
+      else if (remainSeconds <= 300) bar.style.background = 'var(--yellow)';
+      else bar.style.background = 'var(--green)';
+    }
+
+    // ========== ルーレット ==========
+    document.getElementById('btn-roulette').addEventListener('click', startRoulette);
+
+    function startRoulette() {
+      if (isSpinning) return;
+      let pool = POOL[selectedDiff].filter(p => !usedNos.has(p.no));
+      if (pool.length === 0) { usedNos.clear(); pool = POOL[selectedDiff]; }
+      if (pool.length === 0) return;
+
+      isSpinning = true;
+      document.getElementById('btn-roulette').disabled = true;
+      document.getElementById('detail-card').style.display = 'none';
+
+      const target = pool[Math.floor(Math.random() * pool.length)];
+      const noStr = String(target.no).padStart(2, '0');
+
+      const s1 = document.getElementById('slot-d1');
+      const s2 = document.getElementById('slot-d2');
+      const sn1 = document.getElementById('sn1');
+      const sn2 = document.getElementById('sn2');
+      const taskEl = document.getElementById('slot-task-name');
+
+      s1.classList.add('spinning'); s2.classList.add('spinning');
+      taskEl.textContent = '— ピッキング中... —';
+      taskEl.style.color = 'var(--text-dim)';
+
+      const spinInterval = setInterval(() => {
+        sn1.textContent = Math.floor(Math.random() * 10);
+        sn2.textContent = Math.floor(Math.random() * 10);
+      }, 80);
+
+      setTimeout(() => {
+        clearInterval(spinInterval);
+        s1.classList.remove('spinning'); s2.classList.remove('spinning');
+        sn1.textContent = noStr[1]; sn2.textContent = noStr[0];
+        taskEl.textContent = target.name;
+        taskEl.style.color = 'var(--text)';
+        setTimeout(() => showCard(target), 200);
+        isSpinning = false;
+      }, 1800);
+    }
+
+    function showCard(p) {
+      usedNos.add(p.no);
+      currentProblem = p;
+      document.getElementById('card-no').textContent = `No.${p.no}`;
+      document.getElementById('card-title').textContent = p.name;
+      document.getElementById('card-prompt').textContent = p.prompt;
+      document.getElementById('card-tags').innerHTML = `
+    <span class="tag tag-cat">${p.cat}</span>
+    <span class="tag tag-tool">${p.tool}</span>
+    <span class="tag tag-diff">${p.diff}</span>
+    <span class="tag tag-time">⏱ ${p.time}</span>
+  `;
+      const card = document.getElementById('detail-card');
+      card.style.display = 'block';
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+      document.getElementById('btn-roulette').disabled = false;
+    }
+
+    // 回答フォームへ
+    document.getElementById('btn-form').addEventListener('click', () => {
+      if (!currentProblem) return;
+      submitCount++;
+      document.getElementById('submit-count').textContent = submitCount;
+      const url = `${FORM_BASE_URL}?usp=pp_url&${FORM_DEPT_ENTRY}=${encodeURIComponent(selectedDept)}&${FORM_NAME_ENTRY}=${encodeURIComponent(selectedName)}`;
+      window.open(url, '_blank');
+    });
+
+    // 次の問題へ
+    document.getElementById('btn-next').addEventListener('click', () => {
+      document.getElementById('detail-card').style.display = 'none';
+      document.getElementById('sn1').textContent = '—';
+      document.getElementById('sn2').textContent = '—';
+      document.getElementById('slot-task-name').textContent = '— ルーレットを回してください —';
+    });
+
+    // ========== 終了 ==========
+    function showEnd() {
+      document.getElementById('screen-roulette').style.display = 'none';
+      document.getElementById('timer-bar').style.display = 'none';
+      document.getElementById('timer-progress').style.display = 'none';
+      document.getElementById('screen-end').style.display = 'flex';
+      document.getElementById('end-count').textContent = submitCount;
+      document.getElementById('btn-spreadsheet').href = SPREADSHEET_URL;
+    }
+  </script>
+</body>
+
+</html>
