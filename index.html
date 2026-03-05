@@ -684,6 +684,27 @@
       box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
     }
 
+    #btn-top {
+      display: inline-block;
+      margin-top: 8px;
+      background: var(--dark3);
+      color: var(--text-dim);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 12px 32px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #btn-top:hover {
+      border-color: var(--orange);
+      color: var(--orange);
+      transform: translateY(-2px);
+    }
+
     /* アニメーション */
     @keyframes spin-num {
       0% {
@@ -890,6 +911,7 @@
       結果はスプレッドシートで確認できます。
     </div>
     <a id="btn-spreadsheet" href="#" target="_blank">📊 結果スプレッドシートを開く</a>
+    <button id="btn-top" onclick="location.reload()">🏠 TOPへ戻る</button>
   </div>
 
   <script>
@@ -1113,12 +1135,26 @@
     }
 
     // 回答フォームへ
+    let formWindow = null;
+    let formCheckTimer = null;
+
     document.getElementById('btn-form').addEventListener('click', () => {
       if (!currentProblem) return;
-      submitCount++;
-      document.getElementById('submit-count').textContent = submitCount;
       const url = `${FORM_BASE_URL}?usp=pp_url&${FORM_DEPT_ENTRY}=${encodeURIComponent(selectedDept)}&${FORM_NAME_ENTRY}=${encodeURIComponent(selectedName)}`;
-      window.open(url, '_blank');
+      formWindow = window.open(url, '_blank');
+
+      // フォームタブが閉じられたらカウント＆自動フォーカス
+      if (formCheckTimer) clearInterval(formCheckTimer);
+      formCheckTimer = setInterval(() => {
+        if (formWindow && formWindow.closed) {
+          clearInterval(formCheckTimer);
+          formCheckTimer = null;
+          formWindow = null;
+          submitCount++;
+          document.getElementById('submit-count').textContent = submitCount;
+          window.focus();
+        }
+      }, 500);
     });
 
     // 次の問題へ
