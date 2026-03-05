@@ -216,6 +216,58 @@
       max-width: 480px;
     }
 
+    /* 時間選択 */
+    .time-section {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .time-buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .time-btn {
+      background: var(--dark3);
+      border: 2px solid #444;
+      border-radius: 10px;
+      padding: 12px 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .time-btn:hover {
+      border-color: #666;
+      transform: translateY(-2px);
+    }
+
+    .time-btn.active {
+      border-color: var(--orange);
+      background: rgba(232, 83, 42, 0.12);
+    }
+
+    .time-btn .time-icon {
+      font-size: 1.2rem;
+      margin-bottom: 2px;
+    }
+
+    .time-btn .time-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 1.3rem;
+      color: var(--orange);
+      display: block;
+    }
+
+    .time-btn .time-label {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      display: block;
+    }
+
     .diff-buttons {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -754,6 +806,38 @@
       </div>
     </div>
 
+    <!-- 時間選択 -->
+    <div class="time-section">
+      <div class="section-label">— Time —</div>
+      <div class="time-buttons">
+        <button class="time-btn" data-time="5">
+          <div class="time-icon">☕</div>
+          <span class="time-val">5:00</span>
+          <span class="time-label">スキマ</span>
+        </button>
+        <button class="time-btn" data-time="10">
+          <div class="time-icon">⏱</div>
+          <span class="time-val">10:00</span>
+          <span class="time-label">サクッと</span>
+        </button>
+        <button class="time-btn" data-time="15">
+          <div class="time-icon">⚡</div>
+          <span class="time-val">15:00</span>
+          <span class="time-label">集中</span>
+        </button>
+        <button class="time-btn active" data-time="25">
+          <div class="time-icon">🔥</div>
+          <span class="time-val">25:00</span>
+          <span class="time-label">本番</span>
+        </button>
+        <button class="time-btn" data-time="0">
+          <div class="time-icon">∞</div>
+          <span class="time-val">FREE</span>
+          <span class="time-label">制限なし</span>
+        </button>
+      </div>
+    </div>
+
     <button id="btn-start" disabled>挑戦スタート</button>
   </div>
 
@@ -836,9 +920,11 @@
     let selectedDiff = 'beginner';
     let selectedDept = '';
     let selectedName = '';
+    let selectedTime = 25; // 分（0 = 制限なし）
     let currentProblem = null;
     let timerInterval = null;
     let remainSeconds = 25 * 60;
+    let totalSeconds = 25 * 60;
     let submitCount = 0;
     let isSpinning = false;
     let usedNos = new Set();
@@ -892,6 +978,15 @@
       });
     });
 
+    // 時間ボタン
+    document.querySelectorAll('.time-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTime = parseInt(btn.dataset.time);
+      });
+    });
+
     function updateStartBtn() {
       document.getElementById('btn-start').disabled = !(selectedDept && selectedName);
     }
@@ -912,28 +1007,44 @@
 
     // ========== タイマー ==========
     function startTimer() {
-      remainSeconds = 25 * 60;
-      updateTimerDisplay();
-      timerInterval = setInterval(() => {
-        remainSeconds--;
+      if (selectedTime === 0) {
+        // フリーモード: カウントアップ
+        remainSeconds = 0;
+        totalSeconds = 0;
         updateTimerDisplay();
-        updateProgress();
-        if (remainSeconds <= 0) { clearInterval(timerInterval); showEnd(); }
-      }, 1000);
+        document.getElementById('timer-progress').style.display = 'none';
+        timerInterval = setInterval(() => {
+          remainSeconds++;
+          updateTimerDisplay();
+        }, 1000);
+      } else {
+        totalSeconds = selectedTime * 60;
+        remainSeconds = totalSeconds;
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+          remainSeconds--;
+          updateTimerDisplay();
+          updateProgress();
+          if (remainSeconds <= 0) { clearInterval(timerInterval); showEnd(); }
+        }, 1000);
+      }
     }
 
     function updateTimerDisplay() {
-      const m = Math.floor(remainSeconds / 60);
-      const s = remainSeconds % 60;
+      const sec = selectedTime === 0 ? remainSeconds : remainSeconds;
+      const m = Math.floor(Math.abs(sec) / 60);
+      const s = Math.abs(sec) % 60;
       const disp = document.getElementById('timer-display');
       disp.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
       disp.className = '';
+      if (selectedTime === 0) return; // フリーモードは色変化なし
       if (remainSeconds <= 60) disp.classList.add('danger');
       else if (remainSeconds <= 300) disp.classList.add('warning');
     }
 
     function updateProgress() {
-      const pct = (remainSeconds / (25 * 60)) * 100;
+      if (totalSeconds === 0) return;
+      const pct = (remainSeconds / totalSeconds) * 100;
       const bar = document.getElementById('timer-progress');
       bar.style.width = pct + '%';
       if (remainSeconds <= 60) bar.style.background = 'var(--orange)';
