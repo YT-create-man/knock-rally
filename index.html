@@ -705,6 +705,24 @@
       transform: translateY(-2px);
     }
 
+    .btn-top-inline {
+      margin-top: 24px;
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 28px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-top-inline:hover {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
     /* アニメーション */
     @keyframes spin-num {
       0% {
@@ -897,6 +915,8 @@
         <button id="btn-next">次の問題へ ↩</button>
       </div>
     </div>
+    <button class="btn-top-inline" onclick="if(confirm('TOPに戻りますか？\nタイマーはリセットされます。')){location.reload();}">🏠
+      TOPへ戻る</button>
   </div>
 
   <!-- 終了画面 -->
